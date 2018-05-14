@@ -446,7 +446,7 @@ consoleintr(int (*getc)(void))
       break;
     case 9: //Tab
         if(input.e-input.r < INPUT_BUF && isConsole){
-            int endPos = input.e;
+            int endPos = input.e + inputPos;
             int pos = endPos - input.r;
             endPos--;
             char foreInput[INPUT_BUF];
@@ -462,14 +462,20 @@ consoleintr(int (*getc)(void))
             matchCommand(foreInput, matchResult, &matchNum); //match compatitable command
 
             if(matchNum == 1) { //case for one match
-                for(int i = input.e - input.r; matchResult[0][i]; i++) {
-                    input.buf[input.e++ % INPUT_BUF] = matchResult[0][i];
+                int length = strlen(matchResult[0]) - (input.e + inputPos - input.r) + 1;
+                for (int i = input.e % INPUT_BUF - 1 + length; i >= input.e % INPUT_BUF + inputPos + length ; --i) {
+                    input.buf[i] = input.buf[i - length];
+                }
+                for(int i = input.e + inputPos - input.r; matchResult[0][i]; i++) {
+                    input.buf[(input.e + inputPos) % INPUT_BUF] = matchResult[0][i];
+                    input.e++;
                     consputc(matchResult[0][i]);
                 }
-                input.buf[input.e++ % INPUT_BUF] =' ';
+                input.buf[(input.e + inputPos) % INPUT_BUF] =' ';
+                input.e++;
                 consputc(' ');
             }
-            else{ // case for multiple command
+            else{ // case for multiple commands
                 consputc('\n');
                 for(int i = 0; i < matchNum; i++) {
                     for(int j = 0; matchResult[i][j]; j++)
@@ -483,6 +489,7 @@ consoleintr(int (*getc)(void))
                 input.buf[input.e++ % INPUT_BUF] = '\n';
                 consputc('\n');
                 input.w = input.e;
+                inputPos = 0;
                 wakeup(&input.r);
             }
         }
