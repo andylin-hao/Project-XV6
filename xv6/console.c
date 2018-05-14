@@ -28,7 +28,9 @@ int lastblank = -1;
 
 int hlighttype = 0;
 
-int tabFunction = 1;
+int isConsole = 1;
+
+int inputPos = 0;
 
 char* C_Key[] = {"int\0","int*\0","double\0","double*\0",
                  "char\0","char*\0","bool\0","for\0",
@@ -168,6 +170,8 @@ panic(char *s)
 //PAGEBREAK: 50
 #define BACKSPACE 0x100
 #define CRTPORT 0x3d4
+#define LEFTARROW 228
+#define RIGHTARROW 229
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
 int getkey(int pos,int len,char* str2)
@@ -313,6 +317,7 @@ static void
 cgaputc(int c)
 {
   int pos;
+  int move = 0;
   
   // Cursor position: col + 80*row.
   outb(CRTPORT, 14);
@@ -323,22 +328,46 @@ cgaputc(int c)
   if(c == '\n')
     pos += 80 - pos%80;
   else if(c == BACKSPACE){
+    if(inputPos < 0) {
+        for (int i = pos - 1; i % 80 ; ++i) {
+            *(crt + i) = *(crt + i + 1);
+        }
+    }
     if(pos > 0) --pos;
-  } 
-  else
-    crt[pos++] = (c&0xff) | 0x0700;  // black on white
+  }
+  else if(c == LEFTARROW){
+      move = -1;
+  }
+  else if(c == RIGHTARROW){
+      if(crt[pos] != (' ' | 0x0700) || crt[pos + 1] != (' ' | 0x0700))
+          move = 1;
+  }
+  else {
+      if(inputPos < 0){
+          for (int i = 80 * (pos / 80 + 1); i >= pos + 1 ; --i) {
+              *(crt + i) = *(crt + i - 1);
+          }
+      }
+      crt[pos++] = (c&0xff) | 0x0700;  // black on white
+  }
   
   if((pos/80) >= 24){  // Scroll up.
     memmove(crt, crt+80, sizeof(crt[0])*23*80);
     pos -= 80;
     memset(crt+pos, 0, sizeof(crt[0])*(24*80 - pos));
   }
-  
+
+
+  if((pos + move - 4) % 80) {
+      pos += move;
+      inputPos += move;
+  }
   outb(CRTPORT, 14);
   outb(CRTPORT+1, pos>>8);
   outb(CRTPORT, 15);
   outb(CRTPORT+1, pos);
-  crt[pos] = ' ' | 0x0700;
+  if(!inputPos)
+      crt[pos] = ' ' | 0x0700;
 }
 
 /*
@@ -406,18 +435,23 @@ consoleintr(int (*getc)(void))
       break;
     case C('H'): case '\x7f':  // Backspace
       if(input.e != input.w){
+        if(inputPos < 0){
+            for (int i = (input.e % INPUT_BUF) + inputPos - 1; i < (input.e - 1) % INPUT_BUF; ++i) {
+                input.buf[i] = input.buf[i + 1];
+            }
+        }
         input.e--;
         consputc(BACKSPACE);
       }
       break;
-    case 9:
-        if(input.e-input.r < INPUT_BUF && tabFunction){
+    case 9: //Tab
+        if(input.e-input.r < INPUT_BUF && isConsole){
             int endPos = input.e;
             int pos = endPos - input.r;
             endPos--;
             char foreInput[INPUT_BUF];
             foreInput[pos] = '\0';
-            while(pos) {
+            while(pos) { //read old input
                 pos = endPos - input.r;
                 foreInput[pos] = input.buf[endPos];
                 endPos--;
@@ -425,9 +459,9 @@ consoleintr(int (*getc)(void))
 
             int matchNum = 0;
             char* matchResult[CMDNUM] = {0};
-            matchCommand(foreInput, matchResult, &matchNum);
+            matchCommand(foreInput, matchResult, &matchNum); //match compatitable command
 
-            if(matchNum == 1) {
+            if(matchNum == 1) { //case for one match
                 for(int i = input.e - input.r; matchResult[0][i]; i++) {
                     input.buf[input.e++ % INPUT_BUF] = matchResult[0][i];
                     consputc(matchResult[0][i]);
@@ -435,7 +469,7 @@ consoleintr(int (*getc)(void))
                 input.buf[input.e++ % INPUT_BUF] =' ';
                 consputc(' ');
             }
-            else{
+            else{ // case for multiple command
                 consputc('\n');
                 for(int i = 0; i < matchNum; i++) {
                     for(int j = 0; matchResult[i][j]; j++)
@@ -453,12 +487,27 @@ consoleintr(int (*getc)(void))
             }
         }
         break;
+    case LEFTARROW: //left arrow
+        cgaputc(LEFTARROW);
+        break;
+    case RIGHTARROW:
+        cgaputc(RIGHTARROW);
+        break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
-        input.buf[input.e++ % INPUT_BUF] = c;
+        if(inputPos <  0 && c != '\n'){
+            for (int i = input.e % INPUT_BUF; i > input.e % INPUT_BUF + inputPos ; --i) {
+                input.buf[i] = input.buf[i - 1];
+            }
+            input.buf[input.e % INPUT_BUF + inputPos] = c;
+            input.e++;
+        }
+        else
+            input.buf[input.e++ % INPUT_BUF] = c;
         consputc(c);
         if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
+          inputPos = 0;
           input.w = input.e;
           wakeup(&input.r);
         }

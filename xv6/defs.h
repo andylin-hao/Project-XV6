@@ -20,7 +20,7 @@ extern void            cprintf(char*, ...);
 void            consoleintr(int(*)(void));
 void            panic(char*) __attribute__((noreturn));
 extern int      hlighttype;
-extern int      tabFunction;
+extern int      isConsole;
 
 // exec.c
 int             exec(char*, char**);
