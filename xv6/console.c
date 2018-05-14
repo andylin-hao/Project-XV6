@@ -434,7 +434,7 @@ consoleintr(int (*getc)(void))
       }
       break;
     case C('H'): case '\x7f':  // Backspace
-      if(input.e != input.w){
+      if(input.e + inputPos != input.w){
         if(inputPos < 0){
             for (int i = (input.e % INPUT_BUF) + inputPos - 1; i < (input.e - 1) % INPUT_BUF; ++i) {
                 input.buf[i] = input.buf[i + 1];
