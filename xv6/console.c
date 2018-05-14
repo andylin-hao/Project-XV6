@@ -357,8 +357,13 @@ cgaputc(int c)
     memset(crt+pos, 0, sizeof(crt[0])*(24*80 - pos));
   }
 
-
-  if((pos + move - 4) % 80) {
+  int j;
+  int start = pos - pos % 80;
+  for (j = start; j < pos; ++j) {
+      if(crt[j] == (':' | 0x0700))
+          break;
+  }
+  if((pos + move - (j - start)) % 80) {
       pos += move;
       inputPos += move;
   }
