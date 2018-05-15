@@ -8,6 +8,11 @@ struct spinlock;
 struct stat;
 struct superblock;
 
+
+#define CMDTYPE_TEDIT 1
+#define CMDTYPE_NOR   0
+#define SET_CMDTYPE   1
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -19,7 +24,10 @@ void            consoleinit(void);
 extern void            cprintf(char*, ...);
 void            consoleintr(int(*)(void));
 void            panic(char*) __attribute__((noreturn));
+void            clearscreen();
+int             getpos();
 extern int      hlighttype;
+extern int      status;
 extern int      isConsole;
 
 // exec.c

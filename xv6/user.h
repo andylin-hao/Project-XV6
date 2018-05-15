@@ -1,5 +1,9 @@
 struct stat;
 
+#define CMDTYPE_TEDIT     0
+#define CMDTYPE_CONSOLE   1
+#define SET_CMDTYPE       1
+
 // system calls
 int fork(void);
 int exit(void) __attribute__((noreturn));
@@ -25,6 +29,9 @@ int uptime(void);
 int hlight(int);
 int swpath(void);
 int retprt(void);
+int cmdmod(int,int);
+int clrscr();
+int getpos();
 
 // ulib.c
 int stat(char*, struct stat*);

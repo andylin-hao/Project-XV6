@@ -23,3 +23,6 @@
 #define SYS_hlight 22
 #define SYS_swpath 23
 #define SYS_retprt 24
+#define SYS_cmdmod 25
+#define SYS_clrscr 26
+#define SYS_getpos 27

@@ -14,6 +14,8 @@
 #include "file.h"
 #include "fcntl.h"
 
+#define SET_CMDTYPE 1
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -484,4 +486,29 @@ sys_retprt(void)
     proc->npath[i+2] = pth[i];
   proc->npath[i+2] = '\0';
     return 1; 
+}
+
+int
+sys_cmdmod(void)
+{
+  int otype;
+  int type;
+  if(argint(0,&type)<0 && argint(1,&otype)<0)return -1;
+      //cprintf("%d\n",otype);
+    isConsole = type;
+    return 0;
+}
+
+int
+sys_clrscr(void)
+{
+  clearscreen();
+  return 0;
+}
+
+int
+sys_getpos(void)
+{
+
+  return getpos();
 }

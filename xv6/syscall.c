@@ -101,6 +101,9 @@ extern int sys_uptime(void);
 extern int sys_hlight(void);
 extern int sys_swpath(void);
 extern int sys_retprt(void);
+extern int sys_cmdmod(void);
+extern int sys_clrscr(void);
+extern int sys_getpos(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -127,6 +130,9 @@ static int (*syscalls[])(void) = {
 [SYS_hlight]  sys_hlight,
 [SYS_swpath]  sys_swpath,
 [SYS_retprt]  sys_retprt,
+[SYS_cmdmod]  sys_cmdmod,
+[SYS_clrscr]  sys_clrscr,
+[SYS_getpos]  sys_getpos,
 };
 
 void
