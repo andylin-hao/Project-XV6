@@ -32,6 +32,10 @@ int isConsole = 1;
 
 int inputPos = 0;
 
+int init = 0; //command struct init parameter
+
+int first = 1; //the first time when up/down is pressed
+
 char* C_Key[] = {"int\0","int*\0","double\0","double*\0",
                  "char\0","char*\0","bool\0","for\0",
                  "while\0","if\0","return\0","static\0",
@@ -170,6 +174,9 @@ panic(char *s)
 //PAGEBREAK: 50
 #define BACKSPACE 0x100
 #define CRTPORT 0x3d4
+#define TAB 9
+#define UPARROW 226
+#define DOWNARROW 227
 #define LEFTARROW 228
 #define RIGHTARROW 229
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
@@ -416,6 +423,21 @@ struct {
   uint e;  // Edit index
 } input;
 
+#define COMMAND_BUF 128
+struct commandLine{
+    char buf[INPUT_BUF];
+    struct commandLine* next;
+    struct commandLine* pre;
+};
+
+struct {
+    struct commandLine lines[COMMAND_BUF];
+    struct commandLine* head;
+    struct commandLine* tail;
+    struct commandLine* current;
+    uint size;
+} command;
+
 #define C(x)  ((x)-'@')  // Control-x
 
 void
@@ -424,6 +446,13 @@ consoleintr(int (*getc)(void))
   int c;
 
   acquire(&input.lock);
+  if(!init){
+      command.head = command.lines;
+      command.tail = command.head;
+      command.current = command.head;
+      command.size = 0;
+      init = 1;
+  }
   while((c = getc()) >= 0)
   {
     switch(c)
@@ -455,7 +484,7 @@ consoleintr(int (*getc)(void))
         else
             consputc(BACKSPACE);
         break;
-      case 9: //Tab
+      case TAB: //Tab
           if(input.e-input.r < INPUT_BUF && isConsole)
           {
               int endPos = input.e + inputPos;
@@ -507,9 +536,9 @@ consoleintr(int (*getc)(void))
           }
           break;
       case LEFTARROW: //left arrow
-          if(isConsole)cgaputc(LEFTARROW);
-          else
-          {
+          if(isConsole)
+              cgaputc(LEFTARROW);
+          else {
             cgaputc(LEFTARROW);
             input.buf[input.e++ % INPUT_BUF] = c;
             input.w = input.e;
@@ -517,13 +546,57 @@ consoleintr(int (*getc)(void))
           }
           break;
       case RIGHTARROW:
-          if(isConsole)cgaputc(RIGHTARROW);
-          else
-          {
+          if(isConsole)
+              cgaputc(RIGHTARROW);
+          else {
             cgaputc(RIGHTARROW);
             input.buf[input.e++ % INPUT_BUF] = c;
             input.w = input.e;
             wakeup(&input.r);
+          }
+          break;
+      case UPARROW:
+          if(isConsole){
+              if(command.size){
+                  if(!first)
+                      command.current = command.current->pre;
+                  else
+                      first = 0;
+
+                  while(input.e != input.w &&
+                        input.buf[(input.e-1) % INPUT_BUF] != '\n') { //kill line
+                      input.e--;
+                      consputc(BACKSPACE);
+                  }
+
+                  for (int i = 0; command.current->buf[i]; ++i) {
+                      input.buf[input.e++ % INPUT_BUF] = command.current->buf[i];
+                      consputc(command.current->buf[i]);
+                  }
+
+              }
+          }
+          break;
+      case DOWNARROW:
+          if(isConsole){
+              if(command.size){
+                  if(!first)
+                      command.current = command.current->next;
+                  else
+                      first = 0;
+
+                  while(input.e != input.w &&
+                        input.buf[(input.e-1) % INPUT_BUF] != '\n') { //kill line
+                      input.e--;
+                      consputc(BACKSPACE);
+                  }
+
+                  for (int i = 0; command.current->buf[i]; ++i) {
+                      input.buf[input.e++ % INPUT_BUF] = command.current->buf[i];
+                      consputc(command.current->buf[i]);
+                  }
+
+              }
           }
           break;
       default:
@@ -542,7 +615,38 @@ consoleintr(int (*getc)(void))
                   consputc(c);
                   if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
                     inputPos = 0;
+                    first = 1;
                     input.w = input.e;
+
+                    if(command.size == 0){
+                        for (int i = input.r; i < input.e - 1; ++i)
+                            command.lines[0].buf[i - input.r] = input.buf[i];
+                        command.size++;
+                        command.head->pre = command.tail;
+                        command.head->next = command.tail;
+                    }
+                    else if(command.current == command.tail){
+                        if(&command.lines[command.size % COMMAND_BUF] == command.head)
+                            command.head = command.head->next;
+                        for (int i = input.r; i < input.e - 1; ++i)
+                            command.lines[command.size % COMMAND_BUF].buf[i - input.r] = input.buf[i];
+                        command.tail->next = &command.lines[command.size % COMMAND_BUF];
+                        command.tail->next->pre = command.tail;
+                        command.tail = command.tail->next;
+                        command.tail->next = command.head;
+                        command.head->pre = command.tail;
+                        command.current = command.tail;
+                        command.size++;
+                    }
+                    else{
+                        if(command.current == command.head)
+                            command.head = command.head->next;
+                        command.tail->next = command.current;
+                        command.current->pre = command.tail;
+                        command.current->next = command.head;
+                        command.head->pre = command.current;
+                        command.tail = command.current;
+                    }
                     wakeup(&input.r);
                   }
                 }
