@@ -629,7 +629,7 @@ consoleintr(int (*getc)(void))
                         if(&command.lines[command.size % COMMAND_BUF] == command.head)
                             command.head = command.head->next;
                         for (int i = input.r; i < input.e - 1; ++i)
-                            command.lines[command.size % COMMAND_BUF].buf[i - input.r] = input.buf[i];
+                            command.lines[command.size % COMMAND_BUF].buf[i - input.r] = input.buf[i % INPUT_BUF];
                         command.tail->next = &command.lines[command.size % COMMAND_BUF];
                         command.tail->next->pre = command.tail;
                         command.tail = command.tail->next;
@@ -639,11 +639,15 @@ consoleintr(int (*getc)(void))
                         command.size++;
                     }
                     else{
+                        for (int i = input.r; i < input.e - 1; ++i)
+                            command.current->buf[i - input.r] = input.buf[i % INPUT_BUF];
                         if(command.current == command.head)
                             command.head = command.head->next;
-                        command.tail->next = command.current;
+                        command.current->pre->next = command.current->next;
+                        command.current->next->pre = command.current->pre;
                         command.current->pre = command.tail;
                         command.current->next = command.head;
+                        command.tail->next = command.current;
                         command.head->pre = command.current;
                         command.tail = command.current;
                     }
