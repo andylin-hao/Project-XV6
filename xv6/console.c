@@ -356,7 +356,7 @@ cgaputc(int c)
   }
   else {
       if(inputPos < 0){
-          for (int i = 80 * (pos / 80 + 1); i >= pos + 1 ; --i) {
+          for (int i = pos - inputPos; i >= pos + 1 ; --i) {
               *(crt + i) = *(crt + i - 1);
           }
       }
