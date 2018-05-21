@@ -104,6 +104,10 @@ extern int sys_retprt(void);
 extern int sys_cmdmod(void);
 extern int sys_clrscr(void);
 extern int sys_getpos(void);
+extern int sys_setcln(void);
+extern int sys_lstpos(void);
+extern int sys_hlline(void);
+extern int sys_delhlt(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -133,6 +137,10 @@ static int (*syscalls[])(void) = {
 [SYS_cmdmod]  sys_cmdmod,
 [SYS_clrscr]  sys_clrscr,
 [SYS_getpos]  sys_getpos,
+[SYS_setcln]  sys_setcln,
+[SYS_lstpos]  sys_lstpos,
+[SYS_hlline]  sys_hlline,
+[SYS_delhlt]  sys_delhlt,
 };
 
 void

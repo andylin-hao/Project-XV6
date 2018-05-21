@@ -8,6 +8,8 @@
 
 
 
+#define BACKSPACE 8
+#define TAB 9
 #define MAX_LINE_NUM 24
 #define KEY_UP 0xE2
 #define KEY_DOWN 0xE3
@@ -17,6 +19,7 @@
 #define CRTPORT 0x3d4
 #define PAR_SIZE 2048
 #define MAX_OUTPUT 80*(MAX_LINE_NUM-1) // last line to print status
+#define C(x)  ((x)-'@')
 
 #define VIS_MODE 0
 #define EDT_MODE 1
@@ -36,6 +39,14 @@ int screenpos = 0;
 int firstpos = 0;
 int lastpos = 0;
 
+int linenum = 0;
+int nowline = 0;
+int firstline_onscreen = 0;
+int ese_mode = 0;
+int hlight_mode = 0;
+
+
+int edit_mode = 0;
 
 struct node
 {
@@ -50,8 +61,8 @@ struct node*
   pushback_node(struct node* front)
 {
   struct node* new_node;
-  new_node = (struct node*)sbrk(sizeof(struct node));
-  memset(new_node->content, 0, CONTENT_SIZE+1);
+  new_node = (struct node*)malloc(sizeof(struct node));
+  memset(new_node->content, 0, CONTENT_SIZE + 1);
   new_node->size = 0;
 
   new_node->prev = front;
@@ -64,7 +75,26 @@ struct node*
   return new_node;
 }
 
+struct node*
+  add_node(struct node* front)
+{
+  struct node* new_node;
+  new_node = (struct node*)malloc(sizeof(struct node));
+  memset(new_node->content, 0, CONTENT_SIZE + 1);
+  new_node->size = 0;
 
+  new_node->next = 0;
+  new_node->prev = 0;
+
+  new_node->prev = front;
+  new_node->next = front->next;
+  front->next = new_node;
+
+  if (new_node->next != 0) {
+    new_node->next->prev = new_node;
+  }
+  return new_node;
+}
 
 struct doc
 {
@@ -78,127 +108,293 @@ struct doc
 struct doc f;
 //////////////////////////////////////////////////////////////////////////////////
 
-char getca(int pos)
-{
-  if (pos >= f.size)return 0;
-  int npos = (pos - 1) / CONTENT_SIZE;
-  int off = (pos - 1) % CONTENT_SIZE;
-  struct node* cnode = &f.head;
-  for (int i = 0; i < npos; ++i)cnode = cnode->next;
-  return cnode->content[off];
-}
 
-
-struct node* setca(int pos, char c)
+int newpara(struct node* now,int pos)
 {
-  if (pos>=f.size)
+  struct node* newnode;
+  newnode = add_node(now);
+  for (int i = pos; i < now->size; i++)
   {
-    if (f.last->size<CONTENT_SIZE)f.last->content[f.last->size++] = c;
+    newnode->content[i - pos] = now->content[i];
+  }
+  now->content[pos] = '\n';
+  
+  memset(now->content + pos + 1, 0, CONTENT_SIZE - pos - 1);
+  newnode->size = now->size - pos;
+  now->size = pos + 1;
+
+  if (newnode->content[newnode->size - 1] == '\n' || f.last == now)
+  {
+    if (f.last == now)f.last = now->next;
+    return 1;
+  }
+  while (newnode->content[newnode->size - 1] != '\n' && newnode->content[newnode->size - 1] != '\0')
+  {
+    if (newnode == f.last)break;
+
+    if(newnode == 0)break;
+    
+    int len = CONTENT_SIZE - newnode->size;
+    if (newnode->next->size < CONTENT_SIZE - newnode->size)
+    {
+      len = newnode->next->size;
+      for (int i = 0; i < len; i++)
+      {
+        newnode->content[newnode->size++] = newnode->next->content[i];
+      }
+      struct node* un = newnode->next;
+      memset(un->content, 0, CONTENT_SIZE + 1);
+      un->size = 0;
+      if(un != f.last)
+      {
+        newnode->next = un->next;
+        un->next->prev = newnode;
+        
+        un->next = 0;
+        un->prev = 0;
+
+        un->prev = f.last;
+        un->next = f.last->next;
+        if(f.last->next)f.last->next->prev = un;
+        f.last->next = un;
+        break;
+      }
+      else
+      {
+        f.last = un->prev;
+        break;
+      }
+    }
     else
     {
-      if(f.last->next == 0)f.last = pushback_node(f.last);
-      else f.last = f.last->next;
-      f.last->content[f.last->size++] = c;
+      for (int i = 0; i < len; i++)
+      {
+        newnode->content[newnode->size++] = newnode->next->content[i];
+      }
+      for (int i = len; i < newnode->next->size - len; i++)
+      {
+        newnode->next->content[i - len] = newnode->next->content[i];
+      }
+      newnode->next->size = newnode->next->size - len;
+      memset(newnode->next->content + newnode->next->size, 0, CONTENT_SIZE - newnode->next->size);
+      newnode = newnode->next;
     }
-    return f.last;
-  }
-  else
-  {
-    int npos = (pos-1) / CONTENT_SIZE ;
-    int off = (pos - 1) % CONTENT_SIZE;
-    struct node* cnode = &f.head;
-    for (int i = 0; i < npos; ++i)cnode = cnode->next;
-    cnode->content[off] = c;
-    return cnode;
-  }
-}
-
-int addc(int pos, char c)
-{
-  if (pos >= f.size)
-  {
-    setca(pos, c);
-    f.size++;
-  }
-  else
-  {
-    int off = (pos - 1) % CONTENT_SIZE;
-    char org = getca(pos);
-    struct node* lnode, *cnode;
-
-    lnode = setca(pos, c);
-    setca(f.size + 1, getca(f.size));
-    f.size++;
-    cnode = f.last;
-
-    while (cnode != lnode)
-    {
-      for (int j = cnode->size - 1; j>0; j--)
-        cnode->content[j] = cnode->content[j - 1];
-      cnode = cnode->prev;
-      if (cnode->next)cnode->next->content[0] = cnode->content[cnode->size - 1];
-    }
-    for (int j = cnode->size - 1; j>off + 1; j--)
-      cnode->content[j] = cnode->content[j - 1];
-    if (cnode->next)cnode->next->content[0] = cnode->content[cnode->size - 1];
-    if (pos%CONTENT_SIZE)cnode->content[off + 1] = org;
-    else cnode->next->content[0] = org;
   }
   return 0;
+
+
 }
 
-int deletec(int pos)
-{
-  if (pos == f.size)
-  {
-    f.last->content[f.last->size - 1] = '\0';
-    f.last->size--;
-    f.size--;
-    if (f.last->size == 0)f.last = f.last->prev;
-  }
-  else
-  {
-    
 
-    //int npos = (pos - 1) / CONTENT_SIZE;
-    int off = (pos - 1) % CONTENT_SIZE;
-    struct node *cnode,*lnode;
-    cnode = setca(pos, getca(pos + 1));
-    lnode = f.last;
-    
-    for (int i = off; i < cnode->size-1; i++)
+int addc_node(struct node* now, int pos,int c)
+{
+  if(now == 0)return -1;
+  if (pos > CONTENT_SIZE)return -1;
+  if (now->size < CONTENT_SIZE)
+  {
+    if (pos >= now->size)
     {
-      cnode->content[i] = cnode->content[i+1];
-    }
-    
-    if (cnode == lnode)
-    {
-      f.last->size--;
-      f.size--;
+      now->content[now->size++] = c;
       return 0;
     }
-    cnode->content[cnode->size - 1] = cnode->next->content[0];
-    cnode = cnode->next;
-    while (cnode != lnode)
+    for (int i = now->size; i > pos; i--)
     {
-      for (int i = 0; i < cnode->size - 1; i++)
-      {
-        cnode->content[i] = cnode->content[i + 1];
-      }
-      cnode->content[cnode->size - 1] = cnode->next->content[0];
-      cnode = cnode->next;
+      now->content[i] = now->content[i - 1];
     }
-    for (int i = 0; i < cnode->size - 1; i++)
+    now->content[pos] = c;
+    now->size++;
+    return 0;
+  }
+  else
+  {
+    int lef = now->content[now->size - 1];
+    for (int i = now->size - 1; i >pos; i--)
     {
-      cnode->content[i] = cnode->content[i + 1];
+      now->content[i] = now->content[i - 1];
     }
-    cnode->content[cnode->size - 1] = '\0';
-    f.last->size--;
-    f.size--;
-    if (f.last->size == 0)f.last = f.last->prev;
+    now->content[pos] = c;
+    return lef;
+  }
+}
 
+int addc(struct node* now, int pos, int c)
+{
+  //struct node* cur;
+  if(now == 0)return -1;
+  if (c == '\n')
+  {
+    newpara(now, pos);
+  }
+  else
+  {
+    while (1)
+    {
+      c = addc_node(now, pos, c);
+      if (c == -1)return -1;
+      if (!c)break;
+      else if(c == '\n')
+      {
+        struct node* a;
+        a = add_node(now);
+        a->content[a->size++] = '\n';
+        if(f.last == now)f.last = a;
+        break;
+      }
+      else
+      {
+        
+        if (!now->next)
+        {
+          add_node(now);
+          if (now == f.last)
+            f.last = now->next;
+        }
+        now = now->next;
+        pos = 0;
+      }
+    }
+  }
+  f.size++;
+  return 0;
+}
+
+
+
+
+int delete_node(struct node* now, int pos)
+{
+  if(now == 0)return -1;
+  if (pos > now->size || now->size == 0)return -1;
+    for (int i = pos; i < now->size-1; i++)
+    {
+      now->content[i] = now->content[i + 1];
+    }
+    now->content[now->size - 1] = '\0';
+    now->size--;
+
+    if (now->size)
+    {
+      if (now->content[now->size - 1] != '\n'&& now->content[now->size - 1] != '\0')
+        return 1;
+      else return 0;
+    }
+    else
+    {
+      if (now != f.last)
+      {
+        now->prev->next = now->next;
+        now->next->prev = now->prev;
+
+        now->next = 0;
+        now->prev = 0;
+
+        now->prev = f.last;
+        now->next = f.last->next;
+        if (f.last->next)f.last->next->prev = now;
+        f.last->next = now;
+      }
+      else
+      {
+        f.last = now->prev;
+      }
+      return 0;
+    }
+}
+
+
+int merge_para(struct node* now,int pos)
+{
+  if(now == 0)return -1;
+  struct node* un;
+  if (now == f.last)now->content[--now->size] = '\0';
+  while(now != f.last)
+  {
+    if (CONTENT_SIZE - pos >= now->next->size)
+    {
+      for (int i = 0; i < now->next->size; i++)
+      {
+        now->content[i + pos] = now->next->content[i];
+        now->size = i + pos + 1;
+      }
+      un = now->next;
+      memset(un->content, 0, CONTENT_SIZE + 1);
+      un->size = 0;
+
+      if (un != f.last)
+      {
+        now->next = un->next;
+        un->next->prev = now;
+
+        un->next = 0;
+        un->prev = 0;
+
+        un->next = f.last->next;
+        un->prev = f.last;
+        if (f.last->next)f.last->next->prev = un;
+        f.last = un;
+
+      }
+      else
+      {
+        f.last = un->prev;
+      }
+      break;
+    }
+    else
+    {
+      for (int i = pos; i < CONTENT_SIZE; i++)
+      {
+        now->content[i] = now->next->content[i - pos];
+        now->size = i + 1;
+      }
+      for (int i = CONTENT_SIZE-pos; i < now->next->size; i++)
+      {
+        now->next->content[i - CONTENT_SIZE + pos] = now->next->content[i];
+      }
+      now->next->size = now->next->size - (CONTENT_SIZE - pos);
+      memset(now->next->content + now->next->size, 0, CONTENT_SIZE - now->next->size);
+      now = now->next;
+      if (now->content[now->size - 1] == '\n')break;
+      else pos = now->size;
+    }
   }
   return 0;
+}
+
+int deletec(struct node* now, int pos)
+{
+  if(now == 0)return -1;
+  if (pos >= now->size)return -1;
+  if (now->content[pos] != '\n')
+  {
+    if (!delete_node(now, pos))
+    {
+      f.size--;
+      return 1;
+    }
+    else
+    {
+      while (now != f.last)
+      {
+        now->content[now->size++] = now->next->content[0];
+        now = now->next;
+        if (delete_node(now, 0))
+        {
+          now = now->next;
+        }
+        else
+        {
+          break;
+        }
+      }
+    }
+  }
+  else
+  {
+    merge_para(now,pos);
+  }
+  f.size--;
+  return 1;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -227,13 +423,17 @@ int loadfile(int fd)
     while(1)
     {
       n = read(fd,buf,CONTENT_SIZE);
-      if(n<0)printf(2,"failed to load file\n");
+      if(n<0)
+      {
+        printf(2,"failed to load file\n");
+        return -1;
+      }
       if(n == 0)break;
-      printf(1,"n:%d\n", n);
-      if(n<CONTENT_SIZE)n--;
+      //printf(1,"n:%d\n", n);
+      //if(n<CONTENT_SIZE)n--;
       for (int i = 0; i < n; ++i)
       {
-        addc(f.size,buf[i]);
+        addc(f.last,f.last->size,buf[i]);
        
       }
     }
@@ -291,6 +491,35 @@ int scrpos_to_docpos()
 }
 
 
+struct node* getpline(int pos)
+{
+  struct node* lineptr = &f.head;
+  int linenumber = firstline_onscreen + pos/80;
+  for (int i = 0; i < linenumber; ++i)lineptr = lineptr->next;
+  return lineptr;
+}
+
+
+void savefile(char* filename)
+{
+  unlink(filename);
+  int fd = open(filename, O_CREATE|O_RDWR);
+  struct node* nline;
+  nline = &f.head;
+  //int n;
+  while(1)
+  {
+    //char a = 'a';
+    for (int i = 0; i < nline->size+1&&nline->content[i]; ++i)
+    {
+      write(fd,(nline->content+i),1);
+    }
+    if(nline == f.last)break;
+    nline = nline->next;
+  }
+  close(fd);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -301,31 +530,49 @@ main(int argc, char *argv[])
     exit();
    }
    printf(1,"start\n");
+
+   linenum = 0;
+   nowline = 0;
    newfile = 0;
    f.head.next = 0;
    f.head.prev = 0;
    f.last = &f.head;
    f.size = 0;
    f.head.size = 0;
+   edit_mode = 0;
+   hlight_mode = 0;
+
    printf(1,"stop1\n");
    memset(f.head.content, 0, CONTENT_SIZE+1);
 
    printf(1,"stop2\n");
    int fd = openfile(argv[1]);
    printf(1,"stop3\n");
-   loadfile(fd);
+   if(loadfile(fd)<0)
+    {
+      close(fd);
+      return 0;
+    };
    close(fd);
    printf(1,"stop4\n");
-   struct node* nnode;
-   nnode = &f.head;
+   //struct node* nnode;
+   //nnode = &f.head;
    
    clrscr();
    //printf(2,"%d\n", f.size);
+   
+   struct node* count;
+   for(count = &f.head;count != f.last;count = count->next)linenum++;
+   if(linenum>24) firstline_onscreen = linenum-24;
+   count = getpline(0);
+   int cc = 1;
    while(1)
    {
-    printf(1,"%s", nnode->content);
-    if(nnode == f.last)break;
-    nnode = nnode->next;
+    setcln(cc,count->content);
+    if(hlight_mode)hlline(cc);
+    if(count == f.last||cc>=24*80)break;
+    count = count->next;
+    cc+=1;
    }
    if(cmdmod(CMDTYPE_TEDIT,1)<0)
    {
@@ -333,7 +580,7 @@ main(int argc, char *argv[])
     exit();
    }
 
-   intiscreen();
+   //intiscreen();
    //printf(1,"%d",screenpos);
 
    //int pos;
@@ -343,12 +590,307 @@ main(int argc, char *argv[])
     read(0,&b,1);
     switch(b)
     {
-      case KEY_RIGHT:
-      case KEY_LEFT:
+      //case KEY_UP:
+       //pos = getpos();
+       //if(pos<80)
+      //case KEY_LEFT:
       //pos = getpos();
       //printf(1,"%d",pos);
-      break;
+      case C('P'):
+      {
+        if(!hlight_mode)
+        {  
+          hlight_mode = 1;
+          for (int i = 1; i < 25; ++i)hlline(i);
+        }
+        else
+        {
+          hlight_mode = 0;
+          for (int i = 1; i < 25; ++i)delhlt(i);
+        }
+        break;
+      }
+      case '\n':
+      {
+        if(edit_mode)
+        {//int pos ;
+                int lastpos ;
+                lastpos = lstpos();
+                if(lastpos>=23*80)
+                  {
+                    //printf(1,"shit");
+                    firstline_onscreen++;
+                    lastpos -=80;
+                  }
+                struct node* nline;
+                nline = getpline(lastpos);
+                addc(nline,lastpos%80,b);
+                while(1)
+                {
+                  setcln(lastpos/80+1,nline->content);
+                  if(hlight_mode)hlline(lastpos/80+1);
+                  lastpos+=80;
+                  if(lastpos>=80*24)break;
+                  if(nline == f.last)break;
+                  nline = nline->next;
+                }
+                break;
+        }
+      }
+      case KEY_RIGHT:
+        break;
+      case KEY_LEFT:
+        break;
+      case KEY_UP:
+      {
+        int pos;
+        pos = getpos();
+        if(pos<80)
+        {
+          firstline_onscreen--;
+          struct node* nline;
+          nline = getpline(pos);
+          while(1)
+            {
+              setcln(pos/80+1,nline->content);
+              if(hlight_mode)hlline(pos/80+1);
+              pos+=80;
+              if(pos>=80*24)break;
+              if(nline == f.last)break;
+              nline = nline->next;
+            }
+        }
+        break;
+      }
+      case KEY_DOWN:
+      {
+        int pos;
+        pos = getpos();
+        if(pos>=23*80)
+        {
+          struct node* nline;
+          nline = getpline(pos);
+          if(nline != f.last)
+          {
+            firstline_onscreen++;
+            nline = getpline(0);
+            pos = 0;
+            //clrscr();
+            while(1)
+            {
+              setcln(pos/80+1,nline->content);
+              if(hlight_mode)hlline(pos/80+1);
+              pos+=80;
+              if(pos>=80*24)break;
+              if(nline == f.last)break;
+              nline = nline->next;
+            }
+          }
+        }
+        break;
+      }
+      case BACKSPACE:
+      {
+        if(!edit_mode)break;
+        //printf(1,"BACKSPACE");
+        int pos;
+        pos = getpos();
+        struct node* nline;
+        nline = getpline(pos);
+        /*if(nline->size<80)
+        {
+            deletec(nline,pos%80);
+            setcln(pos/80+1,nline->content);
+            if(hlight_mode)hlline(pos/80+1);
+        }
+        else
+        {*/
+            deletec(nline,pos%80);
+            while(1)
+            {
+              setcln(pos/80+1,nline->content);
+              if(hlight_mode)hlline(pos/80+1);
+              pos+=80;
+              if(pos>=80*24)break;
+              if(nline == f.last)
+                {
+                  char zero[80];
+                  memset(zero,0,80);
+                  if(pos<80*24)
+                  {
+                    while(pos<80*24)
+                    {
+                      setcln(pos/80+1,zero);
+                      pos +=80;
+                    }
+                  }
+                  break;
+                }
+              nline = nline->next;
+            }
+        //}
+        break;
+      }
+      case TAB:
+      {
+        if(!edit_mode)break;
+        
+        int pos ;
+        pos = getpos()-4;
+        
+        struct node* nline;
+        nline = getpline(pos);
+        if(nline == 0)
+        {
+          add_node(f.last);
+          f.last = f.last->next;
+          nline = f.last;
+        }
+        for (int i = 0; i < 4; ++i)
+        {
+            addc(nline,pos%80,' ');
+        }
+        if(nline->size<80)
+          {
+            setcln(pos/80+1,nline->content);
+            if(hlight_mode)hlline(pos/80+1);
+          }
+        else
+        {
+            while(1)
+            {
+              setcln(pos/80+1,nline->content);
+              if(hlight_mode)hlline(pos/80+1);
+              pos+=80;
+              if(pos>=80*24)break;
+              if(nline == f.last)break;
+              nline = nline->next;
+            }
+        }
+        break;
+      }
+      case KEY_ESC:
+      {
+        edit_mode = 0;
+        ese_mode = 1;
+        //savefile(argv[1]);
+        //clrscr();
+        //cmdmod(CMDTYPE_CONSOLE,1);
+        //exit();
+      } 
+      default:
+      {
+        if(b == 'i'&&edit_mode == 0)
+        {
+          edit_mode = 1;
+          break;
+        }
+        if(b == ':'&&edit_mode == 0&&ese_mode == 1)
+        {
+          goto loop10;
+        }
+        if(!edit_mode)break;
+        int pos ;
+        pos = getpos()-1;
+        
+        struct node* nline;
+        nline = getpline(pos);
+        if(nline == 0)
+        {
+          add_node(f.last);
+          f.last = f.last->next;
+          nline = f.last;
+        }
+        //printf(1,"%d",pos);
+        //printf(1,"2");
+        if(nline->size<80)
+        {
+            addc(nline,pos%80,b);
+            setcln(pos/80+1,nline->content);
+            if(hlight_mode)hlline(pos/80+1);
+            //clrscr();
+        }
+        else
+        {
+            addc(nline,pos%80,b);
+            //printf(1,"%d\n",pos);
+            while(1)
+            {
+              setcln(pos/80+1,nline->content);
+              if(hlight_mode)hlline(pos/80+1);
+              pos+=80;
+              if(pos>=80*24)break;
+              if(nline == f.last)break;
+              nline = nline->next;
+            }
+        }
+        break;
+      }
    }
   }
+
+  loop10:clrscr();
+  char order[80];
+  memset(order,0,80);
+  order[0] = ':';
+  printf(1,"%s",order);
+  int ordlen = 1;
+  int wrong_order = 0;
+  while(1)
+  {
+    int b;
+    read(0,&b,1);
+    switch(b)
+    {
+      case '\n':
+      {
+        if(wrong_order)
+        {
+          clrscr();
+          memset(order,0,80);
+          order[0] = ':';
+          printf(1,"%s",order);
+          ordlen = 1;
+          wrong_order = 0;
+          break;
+        }
+        if(order[1]=='q'&&order[2] == '\0')
+        {
+          printf(1,"not save\n");
+          clrscr();
+          cmdmod(CMDTYPE_CONSOLE,1);
+            exit();
+        }
+        else if(order[1] == 'w'&&order[2] == 'q'&&order[3] == '\0')
+        {
+          printf(1,"save\n");
+          savefile(argv[1]);
+          clrscr();
+          cmdmod(CMDTYPE_CONSOLE,1);
+            exit();
+        }
+        else{
+          clrscr();
+          wrong_order = 1;
+          printf(1,"no match order,please input again,press enter to reinput");
+        }
+        break;
+      }
+      case KEY_RIGHT:
+      case KEY_LEFT:
+      case KEY_UP:
+      case KEY_DOWN:
+      case BACKSPACE:
+        break;
+      default:
+      {
+          order[ordlen++] = b;
+          setcln(1,order);
+          break;
+      }
+
+    }
+  }
+
   exit();
 }

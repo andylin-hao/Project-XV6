@@ -29,6 +29,11 @@ int             getpos();
 extern int      hlighttype;
 extern int      status;
 extern int      isConsole;
+extern int      lastpos;
+extern int      esc_mode;
+extern void     setline(char*,int);
+extern void     updatehlight(int);
+extern void     deletehlight(int);
 
 // exec.c
 int             exec(char*, char**);

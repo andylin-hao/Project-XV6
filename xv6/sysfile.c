@@ -496,6 +496,7 @@ sys_cmdmod(void)
   if(argint(0,&type)<0 && argint(1,&otype)<0)return -1;
       //cprintf("%d\n",otype);
     isConsole = type;
+    if(isConsole)esc_mode = 0;
     return 0;
 }
 
@@ -509,6 +510,39 @@ sys_clrscr(void)
 int
 sys_getpos(void)
 {
-
   return getpos();
+}
+
+int
+sys_setcln(void)
+{
+char* line;
+int nline;
+if(argstr(1,&line)<0||argint(0,&nline)<0)return -1;
+setline(line,nline);
+return 0;
+}
+
+int
+sys_lstpos()
+{
+  return lastpos;
+}
+
+int
+sys_hlline()
+{
+  int nline;
+  if(argint(0,&nline)<0)return -1;
+  updatehlight(nline);
+  return 1;
+}
+
+int
+sys_delhlt()
+{
+  int nline;
+  if(argint(0,&nline)<0)return -1;
+  deletehlight(nline);
+  return 1;
 }

@@ -79,7 +79,8 @@ printf(int fd, char *fmt, ...)
       } 
       else if(c == '%'){
         putc(fd, c);
-      } else {
+      } 
+      else {
         // Unknown % sequence.  Print it to draw attention.
         putc(fd, '%');
         putc(fd, c);

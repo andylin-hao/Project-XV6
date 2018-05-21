@@ -26,3 +26,7 @@
 #define SYS_cmdmod 25
 #define SYS_clrscr 26
 #define SYS_getpos 27
+#define SYS_setcln 28
+#define SYS_lstpos 29
+#define SYS_hlline 30
+#define SYS_delhlt 31

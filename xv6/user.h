@@ -32,6 +32,10 @@ int retprt(void);
 int cmdmod(int,int);
 int clrscr();
 int getpos();
+int setcln(int,char*);
+int lstpos();
+int hlline(int);
+int delhlt(int);
 
 // ulib.c
 int stat(char*, struct stat*);
