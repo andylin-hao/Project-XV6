@@ -39,7 +39,12 @@ int first = 1; //the first time when up/down is pressed
 int lastpos = 0;
 
 int edit_mode = 0;
+
 int esc_mode = 0;
+
+int gameInput = 5;
+
+int gameGet = 1;
 
 char* C_Key[] = {"int\0","int*\0","double\0","double*\0",
                  "char\0","char*\0","bool\0","for\0",
@@ -718,7 +723,7 @@ consoleintr(int (*getc)(void))
           }
           break;
       default:
-          if(isConsole) {
+          if(isConsole == 1) {
             if(c != 0 && input.e-input.r < INPUT_BUF){
                   c = (c == '\r') ? '\n' : c;
                   if(inputPos <  0 && c != '\n'){
@@ -772,6 +777,13 @@ consoleintr(int (*getc)(void))
                     wakeup(&input.r);
                   }
                 }
+          }
+          else if(isConsole == 2){
+              if(c > 0)
+              {
+                  gameInput = c;
+                  gameGet = 0;
+              }
           }
           else {
             if(c != 0 && input.e-input.r < INPUT_BUF) {
@@ -903,6 +915,20 @@ clearscreen(void)
   outb(CRTPORT+1, pos);
   crt[pos] = ' ' | 0x0700;
 
+}
+
+void
+printat(int x, int y, int word)
+{
+    int pos = 80 * y + x;
+    inputPos = 0;
+    crt[pos] = word|0x700;
+    pos++;
+
+    outb(CRTPORT, 14);
+    outb(CRTPORT+1, pos>>8);
+    outb(CRTPORT, 15);
+    outb(CRTPORT+1, pos);
 }
 
 void

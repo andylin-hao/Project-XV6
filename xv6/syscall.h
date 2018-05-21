@@ -30,3 +30,8 @@
 #define SYS_lstpos 29
 #define SYS_hlline 30
 #define SYS_delhlt 31
+#define SYS_alarm  32
+#define SYS_time   33
+#define SYS_outexac 34
+#define SYS_kbevent 35
+#define SYS_gameget 36

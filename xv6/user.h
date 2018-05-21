@@ -36,6 +36,11 @@ int setcln(int,char*);
 int lstpos();
 int hlline(int);
 int delhlt(int);
+int alarm(int ticks, void (*handler)());
+int time(void);
+int outexac(int x, int y, char word);
+int kbevent(void (*keyboardHandler)(int (*getc)(void)));
+int gameget(void);
 
 // ulib.c
 int stat(char*, struct stat*);

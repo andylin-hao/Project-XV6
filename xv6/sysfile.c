@@ -496,7 +496,8 @@ sys_cmdmod(void)
   if(argint(0,&type)<0 && argint(1,&otype)<0)return -1;
       //cprintf("%d\n",otype);
     isConsole = type;
-    if(isConsole)esc_mode = 0;
+    if(isConsole)
+        esc_mode = 0;
     return 0;
 }
 
@@ -545,4 +546,26 @@ sys_delhlt()
   if(argint(0,&nline)<0)return -1;
   deletehlight(nline);
   return 1;
+}
+
+int
+sys_outexac(void)
+{
+  int x;
+  int y;
+  int word;
+  if(argint(0, &x) < 0 || argint(1, &y) < 0 || argint(2, &word) < 0)
+    return -1;
+  printat(x, y, word);
+  return 0;
+}
+
+int sys_gameget(void)
+{
+  int input = gameInput;
+  if(!gameGet) {
+    gameGet = 1;
+    return input;
+  } else
+    return -1;
 }

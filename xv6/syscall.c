@@ -108,6 +108,11 @@ extern int sys_setcln(void);
 extern int sys_lstpos(void);
 extern int sys_hlline(void);
 extern int sys_delhlt(void);
+extern int sys_alarm(void);
+extern int sys_time(void);
+extern int sys_outexac(void);
+extern int sys_kbevent(void);
+extern int sys_gameget(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -141,6 +146,11 @@ static int (*syscalls[])(void) = {
 [SYS_lstpos]  sys_lstpos,
 [SYS_hlline]  sys_hlline,
 [SYS_delhlt]  sys_delhlt,
+[SYS_alarm]   sys_alarm,
+[SYS_time]   sys_time,
+[SYS_outexac] sys_outexac,
+[SYS_kbevent] sys_kbevent,
+[SYS_gameget] sys_gameget,
 };
 
 void

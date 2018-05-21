@@ -68,6 +68,10 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   char npath[PATH_LEN];         // Path from root to current directory
+  int alarmticks;
+  void (*alarmhandler)();
+  int curalarmtick;
+  void (*keyboardHandler)();
 };
 
 // Process memory is laid out contiguously, low addresses first:

@@ -155,6 +155,7 @@ mkfs: mkfs.c fs.h
 .PRECIOUS: %.o
 
 UPROGS=\
+    _alarm\
 	_cat\
 	_echo\
 	_eeco\
@@ -168,6 +169,7 @@ UPROGS=\
 	_mkdir\
 	_rm\
 	_sh\
+	_snake\
 	_stressfs\
 	_tedit\
 	_usertests\
@@ -242,7 +244,7 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
-	printf.c umalloc.c eeco.c hlight.c tedit.c\
+	printf.c umalloc.c eeco.c hlight.c tedit.c alarm.c snake.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 

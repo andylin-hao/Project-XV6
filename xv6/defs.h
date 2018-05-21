@@ -25,6 +25,7 @@ extern void            cprintf(char*, ...);
 void            consoleintr(int(*)(void));
 void            panic(char*) __attribute__((noreturn));
 void            clearscreen();
+void            printat(int, int, int);
 int             getpos();
 extern int      hlighttype;
 extern int      status;
@@ -34,6 +35,7 @@ extern int      esc_mode;
 extern void     setline(char*,int);
 extern void     updatehlight(int);
 extern void     deletehlight(int);
+
 
 // exec.c
 int             exec(char*, char**);
@@ -84,6 +86,8 @@ void            kinit2(void*, void*);
 
 // kbd.c
 void            kbdintr(void);
+extern int      gameInput;
+extern int      gameGet;
 
 // lapic.c
 int             cpunum(void);

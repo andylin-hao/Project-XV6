@@ -3,6 +3,7 @@
 #include "defs.h"
 #include "kbd.h"
 
+
 int
 kbdgetc(void)
 {
@@ -46,5 +47,5 @@ kbdgetc(void)
 void
 kbdintr(void)
 {
-  consoleintr(kbdgetc);
+    consoleintr(kbdgetc);
 }

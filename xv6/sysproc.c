@@ -88,3 +88,40 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int sys_alarm(void)
+{
+  int ticks;
+  void (*handler)();
+
+  if(argint(0, &ticks) < 0)
+    return -1;
+  if(argptr(1, (char**)&handler, 1) < 0)
+    return -1;
+  proc->alarmticks = ticks;
+  proc->alarmhandler = handler;
+  return 0;
+}
+int sys_time(void)
+{
+  int time = proc->curalarmtick;
+  return time;
+}
+
+int sys_kbevent(void)
+{
+  void (*handler)();
+  if(argptr(0, (char**)&handler, 1) < 0)
+      return -1;
+  proc->keyboardHandler = handler;
+  return 0;
+}
+
+int sys_ingame(void)
+{
+    int type;
+    if(argint(0, &type) < 0)
+        return -1;
+    isConsole = type;
+    return 0;
+}
