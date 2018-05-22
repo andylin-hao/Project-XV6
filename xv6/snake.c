@@ -203,9 +203,9 @@ void move(){
 
     //the snake's movement contains three steps:
     //1. cut the tail
-    //2. every node of the snake's body move to its previous node's position except the head node
+    //2. every node of the snake's body moves to its previous node's position except the head node
     //3. move the head of snake according to the snake's advancing direction
-    //def: head node represents the foremost node of the body with respect of the snake's advancing direction
+    //def: head node represents the foremost node of the body with respect to the snake's advancing direction
     outexac(snake.body[0].x, snake.body[0].y, ' ');
     for (int i = 0; i < snake.len - 1; ++i) {
         snake.body[i].x = snake.body[i + 1].x;
