@@ -40,9 +40,11 @@ int speed = 10;
 unsigned int randSeed;
 
 void acquireInput();
+void gameFail(void);
 void exitGame(void);
 void move();
 
+//generate random data
 unsigned int rand(void)
 {
     unsigned int r;
@@ -51,6 +53,7 @@ unsigned int rand(void)
     return (r << 16) | ((r >> 16) & 0xFFFF);
 }
 
+//print out game map
 void printMap(void){
     for (int i = 0; i < ROW; ++i) {
         if(i == 0 || i == ROW - 1){
@@ -70,16 +73,33 @@ void printMap(void){
     }
 }
 
+//print out the whole snake
 void printSnake(){
     for (int i = 0; i < snake.len; ++i) {
         outexac(snake.body[i].x, snake.body[i].y, '*');
     }
 }
 
-void timetick(){
-    ;
+//print out score
+void printScore(){
+    char a[] = "Grade:";
+    char b[] = "Level:";
+
+    for (int i = 0; a[i] ; ++i) {
+        outexac(50 + i, 10, a[i]);
+    }
+    printf(1, "%d", grade);
+
+    for (int i = 0; b[i] ; ++i) {
+        outexac(50 + i, 14, b[i]);
+    }
+    printf(1, "%d", level);
+
+    outexac(49, 18, ' ');
+    printf(1, "Press 'q' to quit");
 }
 
+//game inition
 void initGame(){
     //device inition
     cmdmod(2, 2);
@@ -107,8 +127,11 @@ void initGame(){
     if(food.y == 0)
         food.y += 4;
     outexac(food.x, food.y, '*');
+
+    printScore();
 }
 
+//check if snake collides with the wall or itself
 int collision(){
     if(snake.body[snake.len - 1].x == 0 || snake.body[snake.len - 1].x == COL - 1
        || snake.body[snake.len - 1].y == 0 || snake.body[snake.len - 1].y == ROW - 1){
@@ -123,9 +146,11 @@ int collision(){
     return 0;
 }
 
+//check if snake eats a food
 void eat(){
     if(snake.body[snake.len - 1].x == food.x && snake.body[snake.len - 1].y == food.y){
         //level up
+        grade += 10;
         eatingCount++;
         if(eatingCount > 10){
             level++;
@@ -133,6 +158,7 @@ void eat(){
             if(speed > 0)
                 alarm(--speed, move);
         }
+        printScore();
 
         //add a new body
         if(snake.len < MAX){
@@ -158,11 +184,7 @@ void eat(){
                     snake.len++;
                     break;
             }
-            outexac(snake.body[snake.len].x, snake.body[snake.len].y, '*');
         }
-
-        //remove food
-        outexac(food.x, food.y, ' ');
 
         //add new food
         food.x = rand() % COL;
@@ -172,81 +194,54 @@ void eat(){
     }
 }
 
+//snake's movement
 void move(){
+    //initial check
     eat(snake);
     if(collision(snake))
-        exitGame();
-    //acquireInput();
+        gameFail();
 
-    //if snake is a straight line
-    if(snake.state == STRAIGHT){
-        switch (snake.dirc){
-            case UP:
-                outexac(snake.body[0].x, snake.body[0].y, ' ');
-                for (int i = 0; i < snake.len; ++i) {
-                    snake.body[i].y--;
-                }
-                outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
-                break;
-            case DOWN:
-                outexac(snake.body[0].x, snake.body[0].y, ' ');
-                for (int i = 0; i < snake.len; ++i) {
-                    snake.body[i].y++;
-                }
-                outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
-                break;
-            case LEFT:
-                outexac(snake.body[0].x, snake.body[0].y, ' ');
-                for (int i = 0; i < snake.len; ++i) {
-                    snake.body[i].x--;
-                }
-                outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
-                break;
-            case RIGHT:
-                outexac(snake.body[0].x, snake.body[0].y, ' ');
-                for (int i = 0; i < snake.len; ++i) {
-                    snake.body[i].x++;
-                }
-                outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
-                break;
-        }
+    //the snake's movement contains three steps:
+    //1. cut the tail
+    //2. every node of the snake's body move to its previous node's position except the head node
+    //3. move the head of snake according to the snake's advancing direction
+    //def: head node represents the foremost node of the body with respect of the snake's advancing direction
+    outexac(snake.body[0].x, snake.body[0].y, ' ');
+    for (int i = 0; i < snake.len - 1; ++i) {
+        snake.body[i].x = snake.body[i + 1].x;
+        snake.body[i].y = snake.body[i + 1].y;
     }
-
-    else{
-        //check if the snake is already straight
+    switch (snake.dirc){
+        case UP:
+            snake.body[snake.len - 1].y--;
+            outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
+            break;
+        case DOWN:
+            snake.body[snake.len - 1].y++;
+            outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
+            break;
+        case LEFT:
+            snake.body[snake.len - 1].x--;
+            outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
+            break;
+        case RIGHT:
+            snake.body[snake.len - 1].x++;
+            outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
+            break;
+    }
+    //check if the snake is already straight
+    if(snake.state != STRAIGHT){
         if(turningCount == snake.len){
             snake.state = STRAIGHT;
             turningCount = 0;
         }
         else {
             turningCount++;
-            outexac(snake.body[0].x, snake.body[0].y, ' ');
-            for (int i = 0; i < snake.len - 1; ++i) {
-                snake.body[i].x = snake.body[i + 1].x;
-                snake.body[i].y = snake.body[i + 1].y;
-            }
-            switch (snake.dirc){
-                case UP:
-                    snake.body[snake.len - 1].y--;
-                    outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
-                    break;
-                case DOWN:
-                    snake.body[snake.len - 1].y++;
-                    outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
-                    break;
-                case LEFT:
-                    snake.body[snake.len - 1].x--;
-                    outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
-                    break;
-                case RIGHT:
-                    snake.body[snake.len - 1].x++;
-                    outexac(snake.body[snake.len - 1].x, snake.body[snake.len - 1].y, '*');
-                    break;
-            }
         }
     }
 }
 
+//acquire keyboard input and shift the snake's state and direction
 void acquireInput(){
     char input;
     input = gameget();
@@ -280,12 +275,20 @@ void acquireInput(){
     }
 }
 
+//execute when game fails
+void gameFail(void){
+    alarm(speed, acquireInput);
+}
+
+//exit game
 void exitGame(void){
     cmdmod(1, 1);
     clrscr();
     exit();
 }
 
+//game run function
+//function executes every constant period
 void gameRun(){
     move();
     acquireInput();
