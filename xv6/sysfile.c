@@ -442,6 +442,7 @@ sys_hlight(void)
   int type;
   if(argint(0,&type)<0)return 0;
   hlighttype = type;
+  // if(hlighttype == 0&&isConsole == 1)lastpos = -2;
   return 1;
 }
 

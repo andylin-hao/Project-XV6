@@ -24,11 +24,11 @@ static void consputc(int);
 
 static int panicked = 0;
 
-int lastblank = -2;
+int lastblank = -2; //the position of the last ' ' or '\n'
 
-int hlighttype = 0;
+int hlighttype = 0;//hlight or not
 
-int isConsole = 1;
+int isConsole = 1;//in shell or in a appilation
 
 int inputPos = 0;
 
@@ -38,7 +38,7 @@ int first = 1; //the first time when up/down is pressed
 
 int lastpos = 0;
 
-int edit_mode = 0;
+int edit_mode = 0;//the mode of the tedit
 
 int esc_mode = 0;
 
@@ -54,6 +54,7 @@ char* C_Key[] = {"int\0","int*\0","double\0","double*\0",
                  "default\0"};
 
 char* Command[] = {"cat\0",
+                   "date\0",
                    "echo\0",
                    "forktest\0",
                    "grep\0",
@@ -64,6 +65,7 @@ char* Command[] = {"cat\0",
                    "mkdir\0",
                    "rm\0",
                    "sh\0",
+                   "snake\0",
                    "stressfs\0",
                    "usertests\0",
                    "wc\0",
@@ -192,6 +194,23 @@ panic(char *s)
 #define RIGHTARROW 229
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
+
+//a tool to show the pos
+void debug(int pos)
+{
+	crt[22*80+56] = (lastblank/1000+'0')|0x0400;
+	crt[22*80+57] = ((lastblank/100)%10+'0')|0x0400;
+	crt[22*80+58] = ((lastblank/10)%10+'0')|0x0400;
+	crt[22*80+59] = (lastblank%10+'0')|0x0400;
+	crt[23*80+56] = ((pos/1000)+'0')|0x0400;
+	crt[23*80+57] = ((pos/100)%10+'0')|0x0400;
+	crt[23*80+58] = ((pos/10)%10+'0')|0x0400;
+	crt[23*80+59] = (pos%10+'0')|0x0400;
+}
+
+
+
+//compare
 int getkey(int pos,int len,char* str2)
 {
   int i;
@@ -203,15 +222,26 @@ int getkey(int pos,int len,char* str2)
   return 1;
 }
 
+
+//check that the string is one of the key words or not
 int checkkey(int pos)
 {
+
+	
   if(lastblank == -2)
   {
     lastblank = pos;
+    // debug(pos);
     return 0;
   }
   else
   {
+  	// debug(pos);
+
+  	if(pos<lastblank)
+  	{
+  		for(;pos<lastblank;)lastblank-=80;
+  	}
     int len;
     len = pos - lastblank-1;
 
@@ -223,6 +253,8 @@ int checkkey(int pos)
   }
 }
 
+
+//check that the origin char is hlighted or not
 int dkey(int pos)
 {
   if(crt[pos-1]/256 == 4)return 1;

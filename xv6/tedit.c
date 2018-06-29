@@ -186,6 +186,7 @@ int newpara(struct node* now,int pos)
 }
 
 
+//add char in specified node and if the node is full before addiction,return the char which is removed
 int addc_node(struct node* now, int pos,int c)
 {
   if(now == 0)return -1;
@@ -217,6 +218,7 @@ int addc_node(struct node* now, int pos,int c)
   }
 }
 
+//add char in specified node
 int addc(struct node* now, int pos, int c)
 {
   //struct node* cur;
@@ -260,7 +262,7 @@ int addc(struct node* now, int pos, int c)
 
 
 
-
+//delete a char in a specified node
 int delete_node(struct node* now, int pos)
 {
   if(now == 0)return -1;
@@ -302,6 +304,7 @@ int delete_node(struct node* now, int pos)
 }
 
 
+// merge node
 int merge_para(struct node* now,int pos)
 {
   if(now == 0)return -1;
@@ -361,6 +364,8 @@ int merge_para(struct node* now,int pos)
   return 0;
 }
 
+
+//delete a char in specified node
 int deletec(struct node* now, int pos)
 {
   if(now == 0)return -1;
@@ -401,6 +406,8 @@ int deletec(struct node* now, int pos)
 int newfile = 0;
 /////////////////////////////////////////////////////////////////////////////////////////
 
+
+//open the file whose name is *filename
 int openfile(char *file_name)
 {
   int fd;
@@ -413,6 +420,7 @@ int openfile(char *file_name)
   return fd;
 }
 
+//load the content of the file to a linked list
 int loadfile(int fd)
 {
   int n;
@@ -442,6 +450,8 @@ int loadfile(int fd)
 }/**/
 
 
+
+//clear the screen
 void intiscreen()
 {
   memset(screen,0,24*80);
@@ -485,12 +495,14 @@ void intiscreen()
 }
 
 
-int scrpos_to_docpos()
-{
-  return 0;
-}
 
 
+// int scrpos_to_docpos()
+// {
+//   return 0;
+// }
+
+//get the line of the cursor in linked list
 struct node* getpline(int pos)
 {
   struct node* lineptr = &f.head;
@@ -500,6 +512,7 @@ struct node* getpline(int pos)
 }
 
 
+//save
 void savefile(char* filename)
 {
   unlink(filename);
@@ -531,6 +544,8 @@ main(int argc, char *argv[])
    }
    printf(1,"start\n");
 
+
+   //init
    linenum = 0;
    nowline = 0;
    newfile = 0;
@@ -566,6 +581,8 @@ main(int argc, char *argv[])
    if(linenum>24) firstline_onscreen = linenum-24;
    count = getpline(0);
    int cc = 1;
+   
+	//show the content 
    while(1)
    {
     setcln(cc,count->content);
@@ -580,10 +597,7 @@ main(int argc, char *argv[])
     exit();
    }
 
-   //intiscreen();
-   //printf(1,"%d",screenpos);
-
-   //int pos;
+   //handle input here
    while(1)
    {
     int b;
@@ -829,6 +843,7 @@ main(int argc, char *argv[])
    }
   }
 
+  //the ending page
   loop10:clrscr();
   char order[80];
   memset(order,0,80);
