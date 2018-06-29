@@ -7,6 +7,7 @@ struct proc;
 struct spinlock;
 struct stat;
 struct superblock;
+struct rtcdate;
 
 
 #define CMDTYPE_TEDIT 1
@@ -96,6 +97,7 @@ void            lapiceoi(void);
 void            lapicinit(void);
 void            lapicstartap(uchar, uint);
 void            microdelay(int);
+void            cmostime(struct rtcdate*);
 
 // log.c
 void            initlog(void);

@@ -7,6 +7,8 @@
 #include "traps.h"
 #include "mmu.h"
 #include "x86.h"
+//added
+#include "date.h"
 
 // Local APIC registers, divided by 4 for use as uint[] indices.
 #define ID      (0x0020/4)   // ID
@@ -14,27 +16,27 @@
 #define TPR     (0x0080/4)   // Task Priority
 #define EOI     (0x00B0/4)   // EOI
 #define SVR     (0x00F0/4)   // Spurious Interrupt Vector
-  #define ENABLE     0x00000100   // Unit Enable
+#define ENABLE     0x00000100   // Unit Enable
 #define ESR     (0x0280/4)   // Error Status
 #define ICRLO   (0x0300/4)   // Interrupt Command
-  #define INIT       0x00000500   // INIT/RESET
-  #define STARTUP    0x00000600   // Startup IPI
-  #define DELIVS     0x00001000   // Delivery status
-  #define ASSERT     0x00004000   // Assert interrupt (vs deassert)
-  #define DEASSERT   0x00000000
-  #define LEVEL      0x00008000   // Level triggered
-  #define BCAST      0x00080000   // Send to all APICs, including self.
-  #define BUSY       0x00001000
-  #define FIXED      0x00000000
+#define INIT       0x00000500   // INIT/RESET
+#define STARTUP    0x00000600   // Startup IPI
+#define DELIVS     0x00001000   // Delivery status
+#define ASSERT     0x00004000   // Assert interrupt (vs deassert)
+#define DEASSERT   0x00000000
+#define LEVEL      0x00008000   // Level triggered
+#define BCAST      0x00080000   // Send to all APICs, including self.
+#define BUSY       0x00001000
+#define FIXED      0x00000000
 #define ICRHI   (0x0310/4)   // Interrupt Command [63:32]
 #define TIMER   (0x0320/4)   // Local Vector Table 0 (TIMER)
-  #define X1         0x0000000B   // divide counts by 1
-  #define PERIODIC   0x00020000   // Periodic
+#define X1         0x0000000B   // divide counts by 1
+#define PERIODIC   0x00020000   // Periodic
 #define PCINT   (0x0340/4)   // Performance Counter LVT
 #define LINT0   (0x0350/4)   // Local Vector Table 1 (LINT0)
 #define LINT1   (0x0360/4)   // Local Vector Table 2 (LINT1)
 #define ERROR   (0x0370/4)   // Local Vector Table 3 (ERROR)
-  #define MASKED     0x00010000   // Interrupt masked
+#define MASKED     0x00010000   // Interrupt masked
 #define TICR    (0x0380/4)   // Timer Initial Count
 #define TCCR    (0x0390/4)   // Timer Current Count
 #define TDCR    (0x03E0/4)   // Timer Divide Configuration
@@ -52,19 +54,19 @@ lapicw(int index, int value)
 void
 lapicinit(void)
 {
-  if(!lapic) 
+  if(!lapic)
     return;
 
   // Enable local APIC; set spurious interrupt vector.
   lapicw(SVR, ENABLE | (T_IRQ0 + IRQ_SPURIOUS));
 
   // The timer repeatedly counts down at bus frequency
-  // from lapic[TICR] and then issues an interrupt.  
+  // from lapic[TICR] and then issues an interrupt.
   // If xv6 cared more about precise timekeeping,
   // TICR would be calibrated using an external time source.
   lapicw(TDCR, X1);
   lapicw(TIMER, PERIODIC | (T_IRQ0 + IRQ_TIMER));
-  lapicw(TICR, 10000000); 
+  lapicw(TICR, 10000000);
 
   // Disable logical interrupt lines.
   lapicw(LINT0, MASKED);
@@ -107,7 +109,7 @@ cpunum(void)
     static int n;
     if(n++ == 0)
       cprintf("cpu called from %x with interrupts enabled\n",
-        __builtin_return_address(0));
+              __builtin_return_address(0));
   }
 
   if(lapic)
@@ -132,6 +134,11 @@ microdelay(int us)
 
 #define IO_RTC  0x70
 
+//added
+#define CMOS_PORT    0x70
+#define CMOS_RETURN  0x71
+
+
 // Start additional processor running entry code at addr.
 // See Appendix B of MultiProcessor Specification.
 void
@@ -139,7 +146,7 @@ lapicstartap(uchar apicid, uint addr)
 {
   int i;
   ushort *wrv;
-  
+
   // "The BSP must initialize CMOS shutdown code to 0AH
   // and the warm reset vector (DWORD based at 40:67) to point at
   // the AP startup code prior to the [universal startup algorithm]."
@@ -156,7 +163,7 @@ lapicstartap(uchar apicid, uint addr)
   microdelay(200);
   lapicw(ICRLO, INIT | LEVEL);
   microdelay(100);    // should be 10ms, but too slow in Bochs!
-  
+
   // Send startup IPI (twice!) to enter code.
   // Regular hardware is supposed to only accept a STARTUP
   // when it is in the halted state due to an INIT.  So the second
@@ -169,4 +176,146 @@ lapicstartap(uchar apicid, uint addr)
   }
 }
 
+//added content
+#define CMOS_STATA   0x0a
+#define CMOS_STATB   0x0b
+#define CMOS_UIP    (1 << 7)        // RTC update in progress
 
+#define SECS    0x00
+#define MINS    0x02
+#define HOURS   0x04
+#define DAY     0x07
+#define MONTH   0x08
+#define YEAR    0x09
+
+static uint cmos_read(uint reg)
+{
+  outb(CMOS_PORT,  reg);
+  microdelay(200);
+
+  return inb(CMOS_RETURN);
+}
+
+static void fill_rtcdate(struct rtcdate *r)
+{
+  r->second = cmos_read(SECS);
+  r->minute = cmos_read(MINS);
+  r->hour   = cmos_read(HOURS);
+  r->day    = cmos_read(DAY);
+  r->month  = cmos_read(MONTH);
+  r->year   = cmos_read(YEAR);
+}
+
+// qemu seems to use 24-hour GWT and the values are BCD encoded
+void cmostime(struct rtcdate *r)
+{
+  struct rtcdate t1, t2;
+  int sb, bcd;
+
+  sb = cmos_read(CMOS_STATB);
+
+  bcd = (sb & (1 << 2)) == 0;
+
+  // make sure CMOS doesn't modify time while we read it
+  for(;;) {
+    fill_rtcdate(&t1);
+    if(cmos_read(CMOS_STATA) & CMOS_UIP)
+      continue;
+    fill_rtcdate(&t2);
+    if(memcmp(&t1, &t2, sizeof(t1)) == 0)
+      break;
+  }
+
+  // convert
+  if(bcd) {
+#define    CONV(x)     (t1.x = ((t1.x >> 4) * 10) + (t1.x & 0xf))
+    CONV(second);
+    CONV(minute);
+    CONV(hour  );
+    CONV(day   );
+    CONV(month );
+    CONV(year  );
+#undef     CONV
+  }
+
+  *r = t1;
+  r->year += 2000;
+  r->hour  += 8;
+  if(r->hour>=24)
+  {
+    r->hour%=24;
+    switch(r->month)
+    {
+      case 1:
+      case 3:
+      case 5:
+      case 7:
+      case 8:
+      case 10:
+        if(r->day==31)
+        {
+          r->day=1;
+          r->month++;
+        }
+        else
+        {
+          r->day++;
+        }
+            break;
+      case 12:
+        if(r->day==31)
+        {
+          r->day=1;
+          r->month=1;
+          r->year++;
+        }
+        else
+        {
+          r->day++;
+        }
+            break;
+      case 4:
+      case 6:
+      case 9:
+      case 11:
+        if(r->day==30)
+        {
+          r->day=1;
+          r->month++;
+        }
+        else
+        {
+          r->day++;
+        }
+            break;
+      case 2:
+        if((r->year%4==0&&r->year%100!=0)||(r->year%400==0))
+        {
+          if(r->day==29)
+          {
+            r->day=1;
+            r->month++;
+          }
+          else
+          {
+            r->day++;
+          }
+        }
+        else
+        {
+          if(r->day==28)
+          {
+            r->day=1;
+            r->month++;
+          }
+          else
+          {
+            r->day++;
+          }
+        }
+            break;
+      default:
+        break;
+    }
+  }
+}

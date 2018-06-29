@@ -113,6 +113,9 @@ extern int sys_time(void);
 extern int sys_outexac(void);
 extern int sys_kbevent(void);
 extern int sys_gameget(void);
+extern int sys_date(void);
+extern int sys_set(void);
+extern int sys_get(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -151,6 +154,9 @@ static int (*syscalls[])(void) = {
 [SYS_outexac] sys_outexac,
 [SYS_kbevent] sys_kbevent,
 [SYS_gameget] sys_gameget,
+[SYS_date]    sys_date,
+[SYS_set]     sys_set,
+[SYS_get]     sys_get,
 };
 
 void

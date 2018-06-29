@@ -1,4 +1,5 @@
 struct stat;
+struct rtcdate;
 
 #define CMDTYPE_TEDIT     0
 #define CMDTYPE_CONSOLE   1
@@ -41,6 +42,9 @@ int time(void);
 int outexac(int x, int y, char word);
 int kbevent(void (*keyboardHandler)(int (*getc)(void)));
 int gameget(void);
+int date(struct rtcdate*);
+int set(char*);
+int get(char *, char *);
 
 // ulib.c
 int stat(char*, struct stat*);

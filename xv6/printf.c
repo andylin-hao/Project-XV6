@@ -2,6 +2,8 @@
 #include "stat.h"
 #include "user.h"
 
+typedef unsigned char uchar;
+
 static void
 putc(int fd, char c)
 {
@@ -35,6 +37,24 @@ printint(int fd, int xx, int base, int sgn)
     putc(fd, buf[i]);
 }
 
+static void printFloat(int fd, double con)
+{
+  double toPrint=con;
+  if(toPrint<0)
+  {
+    putc(fd,'-');
+    toPrint=-toPrint;
+  }
+  int part=(int)toPrint;
+  printint(fd,part,10,1);
+  putc(fd,'.');
+  toPrint+=0.000005;
+  toPrint*=100000;
+  part=(int)(toPrint-100000*part);
+  printint(fd,part,10,1);
+}
+
+
 // Print to the given fd. Only understands %d, %x, %p, %s.
 void
 printf(int fd, char *fmt, ...)
@@ -58,7 +78,7 @@ printf(int fd, char *fmt, ...)
       if(c == 'd'){
         printint(fd, *ap, 10, 1);
         ap++;
-        
+
       } else if(c == 'x' || c == 'p'){
         printint(fd, *ap, 16, 0);
         ap++;
@@ -76,11 +96,16 @@ printf(int fd, char *fmt, ...)
       } else if(c == 'c'){
         putc(fd, *ap);
         ap++;
-      } 
+      } else if(c == 'f')
+      {
+        double toPrint;
+        memmove((void*)&toPrint, (void*)ap, 8);
+        printFloat(fd, toPrint);
+        ap += 2;
+      }
       else if(c == '%'){
         putc(fd, c);
-      } 
-      else {
+      } else {
         // Unknown % sequence.  Print it to draw attention.
         putc(fd, '%');
         putc(fd, c);

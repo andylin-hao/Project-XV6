@@ -35,3 +35,6 @@
 #define SYS_outexac 34
 #define SYS_kbevent 35
 #define SYS_gameget 36
+#define SYS_date   37
+#define SYS_set    38
+#define SYS_get    39
